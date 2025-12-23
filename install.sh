@@ -4,23 +4,21 @@
 export TERM=xterm-256color
 echo 'export TERM=xterm-256color' >> ~/.bashrc
 
-# Instalar Neovim con mejor manejo de errores
+# Instalar Neovim extrayendo el AppImage (no requiere FUSE)
 echo "Descargando Neovim..."
 curl -L -o /tmp/nvim.appimage https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
+chmod u+x /tmp/nvim.appimage
 
-# Verificar que se descargó un ejecutable, no HTML
-if file /tmp/nvim.appimage | grep -q "executable"; then
-    echo "✅ AppImage descargado correctamente"
-    chmod u+x /tmp/nvim.appimage
-    sudo mv /tmp/nvim.appimage /usr/local/bin/nvim
-else
-    echo "❌ Error: No se descargó el AppImage correctamente"
-    echo "Intentando método alternativo..."
-    # Alternativa: usar una versión específica
-    curl -L -o /tmp/nvim.appimage https://github.com/neovim/neovim/releases/download/v0.10.2/nvim.appimage
-    chmod u+x /tmp/nvim.appimage
-    sudo mv /tmp/nvim.appimage /usr/local/bin/nvim
-fi
+# Extraer el AppImage (no requiere FUSE)
+cd /tmp
+./nvim.appimage --appimage-extract > /dev/null 2>&1
+
+# Mover el binario extraído
+sudo mv squashfs-root /opt/nvim
+sudo ln -sf /opt/nvim/AppRun /usr/local/bin/nvim
+
+# Limpiar
+rm /tmp/nvim.appimage
 
 # Crear directorio .config
 mkdir -p ~/.config
