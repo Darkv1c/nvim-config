@@ -1,6 +1,7 @@
 -- [[ Leader Key ]]
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
+vim.relativenumber = true
 
 -- [[ Lazy.nvim Bootstrap ]]
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
