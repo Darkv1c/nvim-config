@@ -10,9 +10,9 @@ wget https://github.com/neovim/neovim/releases/download/v0.11.1/nvim-linux-x86_6
 chmod +x nvim-linux-x86_64.appimage
 ./nvim-linux-x86_64.appimage --appimage-extract
 
-sudo mv squashfs-root/usr/bin/nvim /usr/local/bin/nvim
-sudo mkdir -p /usr/local/share
-sudo cp -r squashfs-root/usr/share/nvim /usr/local/share/
+squashfs-root/usr/bin/nvim /usr/local/bin/nvim
+mkdir -p /usr/local/share
+cp -r squashfs-root/usr/share/nvim /usr/local/share/
 
 rm -rf squashfs-root nvim-linux-x86_64.appimage
 
