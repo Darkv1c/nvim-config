@@ -13,8 +13,8 @@ chmod u+x nvim-linux-x86_64.appimage
 ./nvim-linux-x86_64.appimage --appimage-extract
 
 # Exposing nvim globally.
-mv squashfs-root /
-ln -s /squashfs-root/AppRun /usr/bin/nvim
+sudo mv squashfs-root /
+sudo ln -s /squashfs-root/AppRun /usr/bin/nvim
 
 # User config (sin sudo)
 mkdir -p ~/.config/nvim
@@ -25,11 +25,11 @@ curl -s https://ohmyposh.dev/install.sh | bash -s
 echo 'eval "$(oh-my-posh init bash --config $(find / -name "avit.omp.json" 2>/dev/null | head -1))"' >> ~/.bashrc
 
 # Update
-apt-get update
+sudo apt-get update
 
 # Install Open Code
 curl -fsSL https://opencode.ai/install | bash
-apt-get install -y procps
-apt-get install -y lsof
+sudo apt-get install -y procps
+sudo apt-get install -y lsof
 mkdir -p ~/.config/opencode
 cp ./opencode.json ~/.config/opencode/opencode.json
