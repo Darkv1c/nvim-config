@@ -149,20 +149,34 @@ else
 fi
 
 # Install yazi (file manager)
-# Note: yazi requires GLIBC 2.39+, which is not available in Debian 12
-# Using lf as alternative file manager instead
-log_step "Installing lf file manager (yazi alternative)"
-if command -v lf &> /dev/null; then
-    log_warn "lf is already installed, skipping"
+log_step "Installing yazi file manager"
+if command -v yazi &> /dev/null; then
+    log_warn "yazi is already installed, skipping"
 else
-    log_info "Downloading lf"
-    LF_VERSION=$(curl -s https://api.github.com/repos/gokcehan/lf/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-    curl -LO "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-amd64.tar.gz"
-    tar -xzf lf-linux-amd64.tar.gz
-    sudo mv lf /usr/local/bin/
-    rm -f lf-linux-amd64.tar.gz
-    log_info "lf installed successfully"
-    log_info "Note: Using 'lf' instead of 'yazi' due to GLIBC compatibility"
+    log_info "Checking GLIBC version for yazi compatibility"
+    GLIBC_VERSION=$(ldd --version | head -1 | grep -oP '\d+\.\d+$')
+    
+    # yazi requires GLIBC 2.38+ (available in Ubuntu 24.04+, Debian 13+)
+    if awk -v ver="$GLIBC_VERSION" 'BEGIN { exit (ver >= 2.38) ? 0 : 1 }'; then
+        log_info "GLIBC $GLIBC_VERSION detected - installing yazi"
+        # Install unzip if not available
+        if ! command -v unzip &> /dev/null; then
+            sudo apt-get install -y unzip
+        fi
+        curl -LO https://github.com/sxyazi/yazi/releases/latest/download/yazi-x86_64-unknown-linux-gnu.zip
+        unzip -q yazi-x86_64-unknown-linux-gnu.zip
+        sudo mv yazi-x86_64-unknown-linux-gnu/yazi /usr/local/bin/
+        rm -rf yazi-x86_64-unknown-linux-gnu yazi-x86_64-unknown-linux-gnu.zip
+        log_info "yazi installed successfully"
+    else
+        log_warn "GLIBC $GLIBC_VERSION is too old for yazi (requires 2.38+)"
+        log_info "Installing lf as alternative file manager"
+        curl -LO "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-amd64.tar.gz"
+        tar -xzf lf-linux-amd64.tar.gz
+        sudo mv lf /usr/local/bin/
+        rm -f lf-linux-amd64.tar.gz
+        log_info "lf installed successfully as yazi alternative"
+    fi
 fi
 
 # Install Open Code
