@@ -130,6 +130,40 @@ for plugin_file in core.lua study.lua work.lua; do
     fi
 done
 
+# Setup yazi.nvim plugin configuration
+log_step "Setting up yazi.nvim configuration"
+mkdir -p "$ACTUAL_HOME/.config/nvim/lua/plugins"
+
+cat > "$ACTUAL_HOME/.config/nvim/lua/plugins/yazi.lua" << 'EOF'
+return {
+  "mikavilpas/yazi.nvim",
+  cmd = { "Yazi", "Yazi cwd", "Yazi toggle" },
+  opts = {
+    open_multiple_tabs = true,
+    yazi_floating_window_border = "single",
+    -- Enable yazi.nvim to find the yazi binary even if PATH is incomplete
+    yazi_binary_path = "/usr/local/bin/yazi",
+    keymaps = {
+      show_help = false,
+      open_file_in_vertical_split = false,
+      open_file_in_horizontal_split = false,
+      open_file_in_tab = false,
+      grep_in_directory = false,
+      replace_in_directory = false,
+      cycle_open_buffers = false,
+      copy_relative_path_to_selected_files = false,
+      send_to_quickfix_list = false,
+    },
+  },
+  keys = {
+    { "-", "<cmd>Yazi cwd<cr>", desc = "Open yazi in current directory" },
+    { "<c-up>", "<cmd>Yazi toggle<cr>", desc = "Toggle yazi" },
+  },
+}
+EOF
+
+log_info "Created yazi.nvim plugin configuration"
+
 # Zsh and Starship configuration
 log_step "Setting up shell configuration"
 mkdir -p "$ACTUAL_HOME/.config"
@@ -146,6 +180,15 @@ if [ -f "$SCRIPT_DIR/.config/starship.toml" ]; then
     log_info "Copied starship.toml"
 else
     log_error "starship.toml not found"
+fi
+
+# Install file command (required for yazi file type detection)
+log_step "Installing file command"
+if command -v file &> /dev/null; then
+    log_warn "file command is already installed, skipping"
+else
+    sudo apt-get install -y file
+    log_info "file command installed successfully"
 fi
 
 # Install yazi (file manager)
@@ -166,6 +209,7 @@ else
         curl -LO https://github.com/sxyazi/yazi/releases/latest/download/yazi-x86_64-unknown-linux-gnu.zip
         unzip -q yazi-x86_64-unknown-linux-gnu.zip
         sudo mv yazi-x86_64-unknown-linux-gnu/yazi /usr/local/bin/
+        sudo mv yazi-x86_64-unknown-linux-gnu/ya /usr/local/bin/
         rm -rf yazi-x86_64-unknown-linux-gnu yazi-x86_64-unknown-linux-gnu.zip
         log_info "yazi installed successfully"
     else
@@ -176,6 +220,43 @@ else
         sudo mv lf /usr/local/bin/
         rm -f lf-linux-amd64.tar.gz
         log_info "lf installed successfully as yazi alternative"
+    fi
+fi
+
+# Ensure yazi is in PATH for desktop environments
+log_step "Setting up PATH for desktop environments"
+if command -v yazi &> /dev/null; then
+    YAZI_PATH=$(which yazi)
+    YAZI_DIR=$(dirname "$YAZI_PATH")
+    
+    # Create desktop entry with proper PATH
+    DESKTOP_DIR="$ACTUAL_HOME/.local/share/applications"
+    mkdir -p "$DESKTOP_DIR"
+    
+    cat > "$DESKTOP_DIR/nvim-yazi.desktop" << EOF
+[Desktop Entry]
+Name=Neovim (with Yazi support)
+GenericName=Text Editor
+Comment=Edit text files with Yazi file manager integration
+TryExec=nvim
+Exec=sh -c "PATH=$YAZI_DIR:\$PATH nvim %F"
+Terminal=true
+Type=Application
+Keywords=Text;editor;
+Icon=nvim
+Categories=Utility;TextEditor;
+StartupNotify=false
+MimeType=text/english;text/plain;text/x-makefile;text/x-c++hdr;text/x-c++src;text/x-chdr;text/x-csrc;text/x-java;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;application/x-shellscript;text/x-c;text/x-c++;
+EOF
+    
+    log_info "Created desktop entry with proper PATH at $DESKTOP_DIR/nvim-yazi.desktop"
+    
+    # Update user's shell profile to ensure PATH includes yazi
+    if ! grep -q "$YAZI_DIR" "$ACTUAL_HOME/.zshrc" 2>/dev/null; then
+        echo "" >> "$ACTUAL_HOME/.zshrc"
+        echo "# Add yazi to PATH" >> "$ACTUAL_HOME/.zshrc"
+        echo "export PATH=\"$YAZI_DIR:\$PATH\"" >> "$ACTUAL_HOME/.zshrc"
+        log_info "Added yazi PATH to .zshrc"
     fi
 fi
 
@@ -215,3 +296,9 @@ log_info ""
 log_info "✓ Installation complete!"
 log_info "Please log out and log back in for zsh to take effect."
 log_info "Or run: exec zsh"
+log_info ""
+log_info "🔧 Yazi.nvim setup notes:"
+log_info "- Yazi is installed at /usr/local/bin/ (included in PATH)"
+log_info "- Desktop entry created with proper PATH configuration"
+log_info "- Plugin configured to use explicit yazi binary path"
+log_info "- Use '-' key in nvim to open yazi, or 'Ctrl+Up' to toggle"
