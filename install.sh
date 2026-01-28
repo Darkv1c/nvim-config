@@ -232,6 +232,24 @@ else
     log_info "fd-find and ripgrep installed successfully"
 fi
 
+# Install eza (modern ls replacement)
+log_step "Installing eza"
+if command -v eza &> /dev/null; then
+    log_warn "eza is already installed, skipping"
+else
+    sudo apt-get install -y eza
+    log_info "eza installed successfully"
+fi
+
+# Install vivid (color generator for terminal)
+log_step "Installing vivid"
+if command -v vivid &> /dev/null; then
+    log_warn "vivid is already installed, skipping"
+else
+    sudo apt-get install -y vivid
+    log_info "vivid installed successfully"
+fi
+
 # Ensure yazi is in PATH for desktop environments
 log_step "Setting up PATH for desktop environments"
 if command -v yazi &> /dev/null; then

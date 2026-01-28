@@ -14,8 +14,14 @@ compinit
 # Agregar ~/.local/bin al PATH
 export PATH="$HOME/.local/bin:$PATH"
 
+# Aliases
+alias ls="eza --group-directories-first"
+
 # Inicializar Starship
 eval "$(starship init zsh)"
 
+export LS_COLORS="$(vivid generate one-dark)"
 export EDITOR=nvim
 export VISUAL=nvim
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' menu select
