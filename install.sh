@@ -37,13 +37,19 @@ elif [ "$USER" = "root" ] && [ -n "$DEVPOD_USER" ]; then
     ACTUAL_USER="$DEVPOD_USER"
     ACTUAL_HOME=$(getent passwd "$DEVPOD_USER" | cut -d: -f6)
 elif [ "$USER" = "root" ]; then
-    # Try to find a non-root user in the container
-    ACTUAL_USER=$(getent passwd 1000 | cut -d: -f1)
-    if [ -z "$ACTUAL_USER" ]; then
-        ACTUAL_USER="$USER"
-        ACTUAL_HOME="$HOME"
+    # In devcontainers, look for vscode user first
+    if getent passwd vscode > /dev/null 2>&1; then
+        ACTUAL_USER="vscode"
+        ACTUAL_HOME=$(getent passwd vscode | cut -d: -f6)
     else
-        ACTUAL_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
+        # Try to find a non-root user in the container by UID 1000
+        ACTUAL_USER=$(getent passwd 1000 | cut -d: -f1)
+        if [ -z "$ACTUAL_USER" ]; then
+            ACTUAL_USER="$USER"
+            ACTUAL_HOME="$HOME"
+        else
+            ACTUAL_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
+        fi
     fi
 else
     ACTUAL_USER="$USER"
@@ -256,6 +262,15 @@ if command -v fd &> /dev/null && command -v rg &> /dev/null; then
 else
     sudo apt-get install -y fd-find ripgrep
     log_info "fd-find and ripgrep installed successfully"
+fi
+
+# Install fzf (fuzzy finder)
+log_step "Installing fzf"
+if command -v fzf &> /dev/null; then
+    log_warn "fzf is already installed, skipping"
+else
+    sudo apt-get install -y fzf
+    log_info "fzf installed successfully"
 fi
 
 # Install eza (modern ls replacement)
