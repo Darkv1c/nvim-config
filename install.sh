@@ -115,16 +115,28 @@ log_step "Setting up neovim configuration"
 mkdir -p "$ACTUAL_HOME/.config/nvim/lua/plugins"
 
 if [ -f "$SCRIPT_DIR/.config/nvim/init.lua" ]; then
-    cp "$SCRIPT_DIR/.config/nvim/init.lua" "$ACTUAL_HOME/.config/nvim/init.lua"
-    log_info "Copied init.lua"
+    if [ "$SCRIPT_DIR/.config/nvim/init.lua" -ef "$ACTUAL_HOME/.config/nvim/init.lua" ]; then
+        log_warn "init.lua is already linked/configured, skipping"
+    else
+        [ -L "$ACTUAL_HOME/.config/nvim/init.lua" ] && rm "$ACTUAL_HOME/.config/nvim/init.lua"
+        cp "$SCRIPT_DIR/.config/nvim/init.lua" "$ACTUAL_HOME/.config/nvim/init.lua"
+        log_info "Copied init.lua"
+    fi
 else
     log_error "init.lua not found in $SCRIPT_DIR/.config/nvim/"
 fi
 
 for plugin_file in core.lua study.lua work.lua; do
     if [ -f "$SCRIPT_DIR/.config/nvim/lua/plugins/$plugin_file" ]; then
-        cp "$SCRIPT_DIR/.config/nvim/lua/plugins/$plugin_file" "$ACTUAL_HOME/.config/nvim/lua/plugins/$plugin_file"
-        log_info "Copied $plugin_file"
+        src="$SCRIPT_DIR/.config/nvim/lua/plugins/$plugin_file"
+        dst="$ACTUAL_HOME/.config/nvim/lua/plugins/$plugin_file"
+        if [ "$src" -ef "$dst" ]; then
+            log_warn "$plugin_file is already linked/configured, skipping"
+        else
+            [ -L "$dst" ] && rm "$dst"
+            cp "$src" "$dst"
+            log_info "Copied $plugin_file"
+        fi
     else
         log_warn "$plugin_file not found, skipping"
     fi
@@ -169,15 +181,27 @@ log_step "Setting up shell configuration"
 mkdir -p "$ACTUAL_HOME/.config"
 
 if [ -f "$SCRIPT_DIR/.zshrc" ]; then
-    cp "$SCRIPT_DIR/.zshrc" "$ACTUAL_HOME/.zshrc"
-    log_info "Copied .zshrc"
+    # Check if destination is already the same file (symlink or same path)
+    if [ "$SCRIPT_DIR/.zshrc" -ef "$ACTUAL_HOME/.zshrc" ]; then
+        log_warn ".zshrc is already linked/configured, skipping"
+    else
+        # Remove destination if it's a symlink
+        [ -L "$ACTUAL_HOME/.zshrc" ] && rm "$ACTUAL_HOME/.zshrc"
+        cp "$SCRIPT_DIR/.zshrc" "$ACTUAL_HOME/.zshrc"
+        log_info "Copied .zshrc"
+    fi
 else
     log_error ".zshrc not found"
 fi
 
 if [ -f "$SCRIPT_DIR/.config/starship.toml" ]; then
-    cp "$SCRIPT_DIR/.config/starship.toml" "$ACTUAL_HOME/.config/starship.toml"
-    log_info "Copied starship.toml"
+    if [ "$SCRIPT_DIR/.config/starship.toml" -ef "$ACTUAL_HOME/.config/starship.toml" ]; then
+        log_warn "starship.toml is already linked/configured, skipping"
+    else
+        [ -L "$ACTUAL_HOME/.config/starship.toml" ] && rm "$ACTUAL_HOME/.config/starship.toml"
+        cp "$SCRIPT_DIR/.config/starship.toml" "$ACTUAL_HOME/.config/starship.toml"
+        log_info "Copied starship.toml"
+    fi
 else
     log_error "starship.toml not found"
 fi
@@ -307,14 +331,28 @@ fi
 log_step "Setting up OpenCode configuration"
 mkdir -p "$ACTUAL_HOME/.config/opencode/themes"
 if [ -f "$SCRIPT_DIR/.config/opencode/opencode.json" ]; then
-    cp "$SCRIPT_DIR/.config/opencode/opencode.json" "$ACTUAL_HOME/.config/opencode/opencode.json"
-    log_info "Copied opencode.json"
+    src="$SCRIPT_DIR/.config/opencode/opencode.json"
+    dst="$ACTUAL_HOME/.config/opencode/opencode.json"
+    if [ "$src" -ef "$dst" ]; then
+        log_warn "opencode.json is already linked/configured, skipping"
+    else
+        [ -L "$dst" ] && rm "$dst"
+        cp "$src" "$dst"
+        log_info "Copied opencode.json"
+    fi
 else
     log_warn "opencode.json not found, skipping"
 fi
 if [ -f "$SCRIPT_DIR/.config/opencode/themes/transparent-gold-blue.json" ]; then
-    cp "$SCRIPT_DIR/.config/opencode/themes/transparent-gold-blue.json" "$ACTUAL_HOME/.config/opencode/themes/transparent-gold-blue.json"
-    log_info "Copied transparent-gold-blue theme"
+    src="$SCRIPT_DIR/.config/opencode/themes/transparent-gold-blue.json"
+    dst="$ACTUAL_HOME/.config/opencode/themes/transparent-gold-blue.json"
+    if [ "$src" -ef "$dst" ]; then
+        log_warn "transparent-gold-blue theme is already linked/configured, skipping"
+    else
+        [ -L "$dst" ] && rm "$dst"
+        cp "$src" "$dst"
+        log_info "Copied transparent-gold-blue theme"
+    fi
 else
     log_warn "transparent-gold-blue theme not found, skipping"
 fi
