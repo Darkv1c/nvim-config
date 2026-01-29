@@ -28,33 +28,114 @@ log_step() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ============================================================================
+# DEVCONTAINER USER DETECTION & SWITCH
+# ============================================================================
+# This section handles running as the correct user in devcontainers where
+# DevPod runs dotfiles as root before the remoteUser home directory exists.
+# ============================================================================
+
+detect_target_user() {
+    local target_user=""
+    
+    # 1. Try DOTFILES_TARGET_USER environment variable (explicit override)
+    if [ -n "$DOTFILES_TARGET_USER" ]; then
+        target_user="$DOTFILES_TARGET_USER"
+        log_info "Target user from DOTFILES_TARGET_USER: $target_user"
+        echo "$target_user"
+        return 0
+    fi
+    
+    # 2. If not root, use current user
+    if [ "$USER" != "root" ]; then
+        echo "$USER"
+        return 0
+    fi
+    
+    # 3. Auto-detection for devcontainers (running as root)
+    log_info "Auto-detecting target user..."
+    
+    # Try common devcontainer users in order of preference
+    for candidate in vscode node codespace ubuntu; do
+        if [ -d "/home/$candidate" ]; then
+            target_user="$candidate"
+            log_info "Found existing home directory: /home/$candidate"
+            break
+        fi
+    done
+    
+    # If no home directory found, try UID 1000 (common non-root user)
+    if [ -z "$target_user" ]; then
+        target_user=$(getent passwd 1000 | cut -d: -f1 2>/dev/null || true)
+        if [ -n "$target_user" ]; then
+            log_info "Found user with UID 1000: $target_user"
+        fi
+    fi
+    
+    # Fallback to root if nothing found
+    if [ -z "$target_user" ]; then
+        target_user="root"
+        log_warn "No non-root user found, using root"
+    fi
+    
+    echo "$target_user"
+}
+
+wait_for_user_home() {
+    local user="$1"
+    local home_dir="/home/$user"
+    local max_wait=30
+    
+    # Root home is always available
+    if [ "$user" = "root" ]; then
+        return 0
+    fi
+    
+    # Wait for home directory to exist (devcontainer may be creating it)
+    if [ ! -d "$home_dir" ]; then
+        log_warn "Home directory $home_dir does not exist yet, waiting..."
+        for i in $(seq 1 $max_wait); do
+            if [ -d "$home_dir" ]; then
+                log_info "Home directory $home_dir is now available"
+                return 0
+            fi
+            echo -n "."
+            sleep 1
+        done
+        echo ""
+        log_error "Timeout waiting for $home_dir to be created"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Detect target user
+TARGET_USER=$(detect_target_user)
+
+# If running as root and target is different, switch user and re-run
+if [ "$USER" = "root" ] && [ "$TARGET_USER" != "root" ]; then
+    log_info "Running as root, switching to user: $TARGET_USER"
+    
+    # Wait for target user's home directory to exist
+    if ! wait_for_user_home "$TARGET_USER"; then
+        log_error "Cannot proceed without $TARGET_USER home directory"
+        exit 1
+    fi
+    
+    # Re-run this script as the target user
+    log_info "Re-executing script as $TARGET_USER..."
+    exec su - "$TARGET_USER" -c "cd '$SCRIPT_DIR' && bash '$0'"
+fi
+
+# ============================================================================
+# REGULAR USER DETECTION (after potential user switch)
+# ============================================================================
+
 # Detect the actual user (not root if running via sudo)
 if [ -n "$SUDO_USER" ]; then
     ACTUAL_USER="$SUDO_USER"
     ACTUAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-elif [ "$USER" = "root" ] && [ -n "$DEVPOD_USER" ]; then
-    # DevPod might set this
-    ACTUAL_USER="$DEVPOD_USER"
-    ACTUAL_HOME=$(getent passwd "$DEVPOD_USER" | cut -d: -f6)
-elif [ "$USER" = "root" ]; then
-    # In devcontainers, prefer /home/vscode if it exists (even if user doesn't exist yet)
-    if [ -d "/home/vscode" ]; then
-        ACTUAL_USER="vscode"
-        ACTUAL_HOME="/home/vscode"
-    # Otherwise try to detect vscode user via getent
-    elif getent passwd vscode > /dev/null 2>&1; then
-        ACTUAL_USER="vscode"
-        ACTUAL_HOME=$(getent passwd vscode | cut -d: -f6)
-    else
-        # Try to find a non-root user in the container by UID 1000
-        ACTUAL_USER=$(getent passwd 1000 | cut -d: -f1 2>/dev/null)
-        if [ -z "$ACTUAL_USER" ]; then
-            ACTUAL_USER="root"
-            ACTUAL_HOME="/root"
-        else
-            ACTUAL_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
-        fi
-    fi
 else
     ACTUAL_USER="$USER"
     ACTUAL_HOME="$HOME"
@@ -65,7 +146,7 @@ log_info "Installing for user: $ACTUAL_USER (home: $ACTUAL_HOME)"
 
 # Update
 log_step "Updating package lists"
-# Remove problematic repositories that may have invalid GPG keys
+# Remove problematic Yarn repository if it exists (prevents GPG errors)
 sudo rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true
 sudo apt-get update
 
@@ -295,6 +376,15 @@ else
     log_info "vivid installed successfully"
 fi
 
+# Install fzf (fuzzy finder)
+log_step "Installing fzf"
+if command -v fzf &> /dev/null; then
+    log_warn "fzf is already installed, skipping"
+else
+    sudo apt-get install -y fzf
+    log_info "fzf installed successfully"
+fi
+
 # Ensure yazi is in PATH for desktop environments
 log_step "Setting up PATH for desktop environments"
 if command -v yazi &> /dev/null; then
@@ -378,17 +468,10 @@ else
     log_warn "transparent-gold-blue theme not found, skipping"
 fi
 
-# Fix permissions if running as root
-if [ "$USER" = "root" ] && [ "$ACTUAL_USER" != "root" ]; then
-    log_step "Fixing file permissions for $ACTUAL_USER"
-    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$ACTUAL_HOME/.config" "$ACTUAL_HOME/.zshrc" 2>/dev/null || true
-    log_info "Permissions updated"
-fi
-
-# Set zsh as default shell for the actual user
-if [ "$ACTUAL_USER" != "root" ]; then
+# Set zsh as default shell for the actual user (if not already set)
+if [ "$(getent passwd "$ACTUAL_USER" | cut -d: -f7)" != "$(which zsh)" ]; then
     log_step "Setting zsh as default shell for $ACTUAL_USER"
-    chsh -s $(which zsh) "$ACTUAL_USER" 2>/dev/null || log_warn "Could not set zsh as default (may require manual change)"
+    sudo chsh -s $(which zsh) "$ACTUAL_USER" 2>/dev/null || log_warn "Could not set zsh as default (may require manual change)"
 fi
 
 log_info ""
