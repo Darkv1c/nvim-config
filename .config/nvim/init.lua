@@ -48,10 +48,13 @@ vim.cmd("colorscheme lunaperche")
 vim.opt.fillchars:append({ vert = "▏" }) -- Delgada ▏ o cambia por "│"
 vim.api.nvim_set_hl(0, "WinSeparator", { fg = "#3b4261", bg = "NONE" })
 
-vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
-vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
-vim.api.nvim_set_hl(0, "FloatBorder", { bg = "none" })
-vim.api.nvim_set_hl(0, "Pmenu", { bg = "none" })
+-- Transparent backgrounds only work properly with termguicolors
+if vim.o.termguicolors then
+	vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
+	vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
+	vim.api.nvim_set_hl(0, "FloatBorder", { bg = "none" })
+	vim.api.nvim_set_hl(0, "Pmenu", { bg = "none" })
+end
 
 -- [[ General Options ]]
 vim.o.number = true
