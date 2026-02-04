@@ -418,6 +418,22 @@ else
     log_info "fzf installed successfully"
 fi
 
+# Install zoxide (smart cd command)
+log_step "Installing zoxide"
+if command -v zoxide &> /dev/null; then
+    log_warn "zoxide is already installed, skipping"
+else
+    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+    # Add zoxide to PATH if not already there
+    if ! grep -q "zoxide" "$ACTUAL_HOME/.zshrc" 2>/dev/null; then
+        echo "" >> "$ACTUAL_HOME/.zshrc"
+        echo "# Initialize zoxide" >> "$ACTUAL_HOME/.zshrc"
+        echo "eval \"\$(zoxide init zsh)\"" >> "$ACTUAL_HOME/.zshrc"
+        log_info "Added zoxide initialization to .zshrc"
+    fi
+    log_info "zoxide installed successfully"
+fi
+
 # Ensure yazi is in PATH for desktop environments
 log_step "Setting up PATH for desktop environments"
 if command -v yazi &> /dev/null; then
